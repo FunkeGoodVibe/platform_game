@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Malik's Star Run</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      color: #172026;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #86d7ff 0%, #f5f0dc 62%, #4d9b5d 100%);
+    }
+
+    .game-shell {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+
+    .hud {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      min-width: 92px;
+      padding: 9px 12px;
+      border: 2px solid rgba(23, 32, 38, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.76);
+      box-shadow: 0 5px 16px rgba(28, 45, 61, 0.12);
+      backdrop-filter: blur(8px);
+    }
+
+    .stat span {
+      display: block;
+      color: #52616b;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .closet {
+      max-width: min(430px, 48vw);
+      padding: 10px 12px;
+      border: 2px solid rgba(23, 32, 38, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.76);
+      box-shadow: 0 5px 16px rgba(28, 45, 61, 0.12);
+      backdrop-filter: blur(8px);
+      text-align: right;
+    }
+
+    .closet span {
+      color: #52616b;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .closet strong {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      font-size: 17px;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      background: rgba(23, 32, 38, 0.12);
+    }
+
+    .panel {
+      width: min(420px, 100%);
+      padding: 24px;
+      border: 2px solid rgba(23, 32, 38, 0.2);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 18px 60px rgba(23, 32, 38, 0.22);
+      text-align: center;
+    }
+
+    .panel h1 {
+      margin: 0;
+      font-size: clamp(30px, 7vw, 48px);
+      line-height: 1;
+    }
+
+    .panel p {
+      margin: 12px 0 18px;
+      color: #52616b;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    button {
+      min-width: 148px;
+      min-height: 44px;
+      border: 0;
+      border-radius: 8px;
+      color: white;
+      background: #146c94;
+      box-shadow: 0 8px 18px rgba(20, 108, 148, 0.26);
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    button:hover {
+      background: #0f5a7c;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 720px) {
+      .hud {
+        align-items: flex-start;
+      }
+
+      .stat {
+        min-width: 78px;
+        padding: 8px 9px;
+      }
+
+      .stat strong {
+        font-size: 17px;
+      }
+
+      .closet {
+        max-width: 42vw;
+      }
+
+      .closet strong {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <canvas id="gameCanvas" aria-label="Malik's Star Run game"></canvas>
+
+    <section class="hud" aria-live="polite">
+      <div class="stat-row">
+        <div class="stat">
+          <span>Stars</span>
+          <strong id="stars">0</strong>
+        </div>
+        <div class="stat">
+          <span>Score</span>
+          <strong id="score">0</strong>
+        </div>
+      </div>
+      <div class="closet">
+        <span>Outfit</span>
+        <strong id="outfit">Running shorts</strong>
+      </div>
+    </section>
+
+    <section class="overlay" id="overlay">
+      <div class="panel">
+        <h1>Malik's Star Run</h1>
+        <p>Collect stars, clear the cones, and unlock the full outfit before the run gets too quick.</p>
+        <button id="startButton" type="button">Start Run</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const starsText = document.getElementById("stars");
+    const scoreText = document.getElementById("score");
+    const outfitText = document.getElementById("outfit");
+    const overlay = document.getElementById("overlay");
+    const startButton = document.getElementById("startButton");
+
+    const ground = {
+      y: 0,
+      height: 86
+    };
+
+    const player = {
+      x: 120,
+      y: 0,
+      width: 46,
+      height: 92,
+      velocityY: 0,
+      onGround: true,
+      runStep: 0
+    };
+
+    const upgrades = [
+      { stars: 0, name: "Running shorts" },
+      { stars: 3, name: "Fresh sneakers" },
+      { stars: 6, name: "Team shirt" },
+      { stars: 10, name: "Blue hoodie" },
+      { stars: 15, name: "Red cap" },
+      { stars: 21, name: "Gold jacket" }
+    ];
+
+    let objects = [];
+    let clouds = [];
+    let animationId = null;
+    let lastTime = 0;
+    let spawnTimer = 0;
+    let starTimer = 0;
+    let gameRunning = false;
+    let score = 0;
+    let stars = 0;
+    let speed = 330;
+
+    function resizeCanvas() {
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(window.innerWidth * ratio);
+      canvas.height = Math.floor(window.innerHeight * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ground.y = window.innerHeight - ground.height;
+      player.y = ground.y - player.height;
+    }
+
+    function resetGame() {
+      objects = [];
+      clouds = [
+        { x: 80, y: 80, width: 120, speed: 18 },
+        { x: 420, y: 135, width: 155, speed: 12 },
+        { x: 780, y: 70, width: 135, speed: 16 }
+      ];
+      score = 0;
+      stars = 0;
+      speed = 330;
+      spawnTimer = 0;
+      starTimer = 0;
+      player.velocityY = 0;
+      player.onGround = true;
+      player.runStep = 0;
+      player.y = ground.y - player.height;
+      updateHud();
+    }
+
+    function startGame() {
+      cancelAnimationFrame(animationId);
+      resetGame();
+      overlay.classList.add("hidden");
+      gameRunning = true;
+      lastTime = performance.now();
+      animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function endGame() {
+      gameRunning = false;
+      overlay.classList.remove("hidden");
+      overlay.querySelector("h1").textContent = "Run Complete";
+      overlay.querySelector("p").textContent = `Score ${Math.floor(score)}. Stars ${stars}. Outfit: ${getCurrentUpgrade().name}.`;
+      startButton.textContent = "Run Again";
+    }
+
+    function jump() {
+      if (!gameRunning) {
+        startGame();
+        return;
+      }
+
+      if (player.onGround) {
+        player.velocityY = -720;
+        player.onGround = false;
+      }
+    }
+
+    function updateHud() {
+      starsText.textContent = stars;
+      scoreText.textContent = Math.floor(score);
+      outfitText.textContent = getCurrentUpgrade().name;
+    }
+
+    function getCurrentUpgrade() {
+      return upgrades.reduce((current, upgrade) => {
+        return stars >= upgrade.stars ? upgrade : current;
+      }, upgrades[0]);
+    }
+
+    function spawnCone() {
+      objects.push({
+        type: "cone",
+        x: window.innerWidth + 30,
+        y: ground.y - 44,
+        width: 40,
+        height: 44
+      });
+    }
+
+    function spawnStar() {
+      const high = Math.random() > 0.55;
+      objects.push({
+        type: "star",
+        x: window.innerWidth + 30,
+        y: ground.y - (high ? 165 : 112),
+        width: 34,
+        height: 34,
+        collected: false,
+        angle: 0
+      });
+    }
+
+    function gameLoop(time) {
+      const delta = Math.min((time - lastTime) / 1000, 0.033);
+      lastTime = time;
+
+      update(delta);
+      draw();
+
+      if (gameRunning) {
+        animationId = requestAnimationFrame(gameLoop);
+      }
+    }
+
+    function update(delta) {
+      score += delta * 12;
+      speed += delta * 7;
+      player.runStep += delta * 12;
+
+      player.velocityY += 1900 * delta;
+      player.y += player.velocityY * delta;
+
+      if (player.y >= ground.y - player.height) {
+        player.y = ground.y - player.height;
+        player.velocityY = 0;
+        player.onGround = true;
+      }
+
+      spawnTimer -= delta;
+      starTimer -= delta;
+
+      if (spawnTimer <= 0) {
+        spawnCone();
+        spawnTimer = 1.25 + Math.random() * 0.8;
+      }
+
+      if (starTimer <= 0) {
+        spawnStar();
+        starTimer = 0.85 + Math.random() * 0.85;
+      }
+
+      for (const cloud of clouds) {
+        cloud.x -= cloud.speed * delta;
+        if (cloud.x + cloud.width < -20) {
+          cloud.x = window.innerWidth + Math.random() * 160;
+          cloud.y = 55 + Math.random() * 95;
+        }
+      }
+
+      for (const object of objects) {
+        object.x -= speed * delta;
+        if (object.type === "star") {
+          object.angle += delta * 5;
+        }
+
+        if (object.type === "star" && !object.collected && isColliding(player, object)) {
+          object.collected = true;
+          stars += 1;
+          score += 50;
+        }
+
+        if (object.type === "cone" && isColliding(player, object)) {
+          endGame();
+        }
+      }
+
+      objects = objects.filter((object) => object.x + object.width > -40 && !object.collected);
+      updateHud();
+    }
+
+    function isColliding(a, b) {
+      const padding = 8;
+      return (
+        a.x + padding < b.x + b.width &&
+        a.x + a.width - padding > b.x &&
+        a.y + padding < b.y + b.height &&
+        a.y + a.height - padding > b.y
+      );
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      drawSky();
+      drawGround();
+
+      for (const object of objects) {
+        if (object.type === "star") {
+          drawStar(object);
+        } else {
+          drawCone(object);
+        }
+      }
+
+      drawPlayer();
+    }
+
+    function drawSky() {
+      for (const cloud of clouds) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.82)";
+        ctx.beginPath();
+        ctx.ellipse(cloud.x, cloud.y, cloud.width * 0.28, 22, 0, 0, Math.PI * 2);
+        ctx.ellipse(cloud.x + cloud.width * 0.22, cloud.y - 8, cloud.width * 0.24, 28, 0, 0, Math.PI * 2);
+        ctx.ellipse(cloud.x + cloud.width * 0.48, cloud.y, cloud.width * 0.3, 24, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawGround() {
+      ctx.fillStyle = "#2f7d4b";
+      ctx.fillRect(0, ground.y, window.innerWidth, ground.height);
+
+      ctx.fillStyle = "#245f3b";
+      for (let x = -80; x < window.innerWidth + 80; x += 90) {
+        const offset = (score * 9) % 90;
+        ctx.fillRect(x - offset, ground.y + 22, 52, 7);
+      }
+    }
+
+    function drawPlayer() {
+      const outfit = getCurrentUpgrade();
+      const x = player.x;
+      const y = player.y;
+      const legSwing = Math.sin(player.runStep) * (player.onGround ? 8 : 2);
+
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+
+      ctx.strokeStyle = stars >= 3 ? "#ffffff" : "#172026";
+      ctx.beginPath();
+      ctx.moveTo(x + 15, y + 84);
+      ctx.lineTo(x + 12 - legSwing, y + 104);
+      ctx.moveTo(x + 32, y + 84);
+      ctx.lineTo(x + 36 + legSwing, y + 104);
+      ctx.stroke();
+
+      ctx.fillStyle = stars >= 6 ? "#e85d3f" : "#1e88a8";
+      if (stars >= 10) {
+        ctx.fillStyle = "#2450a4";
+      }
+      if (stars >= 21) {
+        ctx.fillStyle = "#d8a22a";
+      }
+      ctx.fillRect(x + 8, y + 36, 32, 50);
+
+      if (stars >= 10) {
+        ctx.fillStyle = "rgba(15, 45, 95, 0.55)";
+        ctx.fillRect(x + 5, y + 38, 38, 35);
+      }
+
+      ctx.strokeStyle = "#7b4a28";
+      ctx.beginPath();
+      ctx.moveTo(x + 12, y + 45);
+      ctx.lineTo(x - 2, y + 64 + legSwing * 0.4);
+      ctx.moveTo(x + 36, y + 45);
+      ctx.lineTo(x + 50, y + 64 - legSwing * 0.4);
+      ctx.stroke();
+
+      ctx.fillStyle = "#9f6437";
+      ctx.beginPath();
+      ctx.arc(x + 24, y + 22, 18, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#172026";
+      ctx.beginPath();
+      ctx.arc(x + 31, y + 18, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (stars >= 15) {
+        ctx.fillStyle = "#c42436";
+        ctx.fillRect(x + 7, y + 3, 34, 9);
+        ctx.fillRect(x + 35, y + 8, 15, 5);
+      }
+
+      if (stars >= 21) {
+        ctx.fillStyle = "#f2cc52";
+        ctx.beginPath();
+        ctx.moveTo(x + 9, y + 4);
+        ctx.lineTo(x + 18, y - 12);
+        ctx.lineTo(x + 26, y + 3);
+        ctx.lineTo(x + 35, y - 12);
+        ctx.lineTo(x + 42, y + 4);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "#172026";
+      ctx.font = "12px Arial";
+      ctx.fillText(outfit.name.split(" ")[0], x - 6, y - 18);
+    }
+
+    function drawCone(cone) {
+      ctx.fillStyle = "#f26d3d";
+      ctx.beginPath();
+      ctx.moveTo(cone.x + cone.width / 2, cone.y);
+      ctx.lineTo(cone.x, cone.y + cone.height);
+      ctx.lineTo(cone.x + cone.width, cone.y + cone.height);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(cone.x + 10, cone.y + 24, cone.width - 20, 6);
+    }
+
+    function drawStar(star) {
+      const centerX = star.x + star.width / 2;
+      const centerY = star.y + star.height / 2;
+      const points = 5;
+      const outer = star.width / 2;
+      const inner = outer * 0.48;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(star.angle);
+      ctx.beginPath();
+
+      for (let i = 0; i < points * 2; i += 1) {
+        const radius = i % 2 === 0 ? outer : inner;
+        const angle = (Math.PI / points) * i - Math.PI / 2;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+
+      ctx.closePath();
+      ctx.fillStyle = "#ffd23f";
+      ctx.fill();
+      ctx.strokeStyle = "#a66f00";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("keydown", (event) => {
+      if (event.code === "Space" || event.code === "ArrowUp") {
+        event.preventDefault();
+        jump();
+      }
+    });
+    window.addEventListener("pointerdown", jump);
+    startButton.addEventListener("click", startGame);
+
+    resizeCanvas();
+    resetGame();
+    draw();
+  </script>
+</body>
+</html>
