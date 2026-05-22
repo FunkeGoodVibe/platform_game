@@ -1,0 +1,19 @@
+{
+  "name": "Malik's Star Run",
+  "short_name": "Star Run",
+  "description": "Run, jump, collect stars, unlock outfits, and progress through new worlds.",
+  "start_url": "Maliks_Game_ijy.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#86d7ff",
+  "theme_color": "#146c94",
+  "icons": [
+    {
+      "src": "icons/maliks-star-run.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -9,12 +9,20 @@ Now Malik progresses to a new level every 5 stars:
 After that, the worlds cycle again every 5 stars while the level number keeps increasing. I also added a Level counter to the HUD.
 Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
 
+<!-- Users can play in the same WIFI connection  -->
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#146c94">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Malik's Star Run">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/maliks-star-run.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/maliks-star-run.svg">
   <title>Malik's Star Run</title>
   <style>
     * {
@@ -211,6 +219,10 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
           <span>Level</span>
           <strong id="level">1</strong>
         </div>
+        <div class="stat">
+          <span>Online</span>
+          <strong id="online">1</strong>
+        </div>
       </div>
       <div class="closet">
         <span>Outfit</span>
@@ -233,6 +245,7 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
     const starsText = document.getElementById("stars");
     const scoreText = document.getElementById("score");
     const levelText = document.getElementById("level");
+    const onlineText = document.getElementById("online");
     const outfitText = document.getElementById("outfit");
     const overlay = document.getElementById("overlay");
     const startButton = document.getElementById("startButton");
@@ -324,6 +337,13 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
     let score = 0;
     let stars = 0;
     let speed = 330;
+    let socket = null;
+    let socketId = null;
+    let lastNetworkSend = 0;
+    let reconnectTimer = null;
+
+    const remotePlayers = new Map();
+    const playerName = getPlayerName();
 
     function resizeCanvas() {
       const ratio = window.devicePixelRatio || 1;
@@ -386,6 +406,9 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
       starsText.textContent = stars;
       scoreText.textContent = Math.floor(score);
       levelText.textContent = getCurrentLevel();
+      onlineText.textContent = socket && socket.readyState === WebSocket.OPEN
+        ? remotePlayers.size + 1
+        : 1;
       outfitText.textContent = `${getCurrentUpgrade().name} - ${getCurrentWorld().name}`;
     }
 
@@ -491,6 +514,7 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
       }
 
       objects = objects.filter((object) => object.x + object.width > -40 && !object.collected);
+      sendMultiplayerState(timeNow());
       updateHud();
     }
 
@@ -519,6 +543,7 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
       }
 
       drawPlayer();
+      drawRemotePlayers();
     }
 
     function drawBackground() {
@@ -722,6 +747,78 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
       ctx.fillText(outfit.name.split(" ")[0], x - 6, y - 18);
     }
 
+    function drawRemotePlayers() {
+      let slot = 0;
+
+      for (const remotePlayer of remotePlayers.values()) {
+        if (timeNow() - remotePlayer.updatedAt > 5000) {
+          continue;
+        }
+
+        const laneX = player.x + 72 + (slot % 4) * 54;
+        const jumpHeight = Math.min(remotePlayer.jumpHeight || 0, 190);
+        const remoteY = ground.y - player.height - jumpHeight;
+        const legSwing = Math.sin(remotePlayer.runStep || 0) * 6;
+
+        drawRemoteRunner({
+          x: laneX,
+          y: remoteY,
+          legSwing,
+          stars: remotePlayer.stars || 0,
+          name: remotePlayer.name || "Player",
+          color: remotePlayer.color || "#6f54d9"
+        });
+        slot += 1;
+      }
+    }
+
+    function drawRemoteRunner(remotePlayer) {
+      ctx.save();
+      ctx.globalAlpha = 0.72;
+
+      ctx.lineWidth = 7;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#172026";
+      ctx.beginPath();
+      ctx.moveTo(remotePlayer.x + 15, remotePlayer.y + 84);
+      ctx.lineTo(remotePlayer.x + 12 - remotePlayer.legSwing, remotePlayer.y + 104);
+      ctx.moveTo(remotePlayer.x + 32, remotePlayer.y + 84);
+      ctx.lineTo(remotePlayer.x + 36 + remotePlayer.legSwing, remotePlayer.y + 104);
+      ctx.stroke();
+
+      ctx.fillStyle = remotePlayer.color;
+      ctx.fillRect(remotePlayer.x + 8, remotePlayer.y + 36, 32, 50);
+
+      ctx.strokeStyle = "#7b4a28";
+      ctx.beginPath();
+      ctx.moveTo(remotePlayer.x + 12, remotePlayer.y + 45);
+      ctx.lineTo(remotePlayer.x - 2, remotePlayer.y + 64);
+      ctx.moveTo(remotePlayer.x + 36, remotePlayer.y + 45);
+      ctx.lineTo(remotePlayer.x + 50, remotePlayer.y + 64);
+      ctx.stroke();
+
+      ctx.fillStyle = "#9f6437";
+      ctx.beginPath();
+      ctx.arc(remotePlayer.x + 24, remotePlayer.y + 22, 18, 0, Math.PI * 2);
+      ctx.fill();
+
+      drawAfro(remotePlayer.x + 24, remotePlayer.y + 12);
+
+      ctx.fillStyle = "#172026";
+      ctx.beginPath();
+      ctx.arc(remotePlayer.x + 31, remotePlayer.y + 18, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#172026";
+      ctx.font = "12px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(remotePlayer.name, remotePlayer.x + 24, remotePlayer.y - 18);
+      ctx.fillText(`${remotePlayer.stars} stars`, remotePlayer.x + 24, remotePlayer.y - 4);
+      ctx.textAlign = "start";
+      ctx.restore();
+    }
+
     function drawAfro(centerX, centerY) {
       ctx.fillStyle = "#17120f";
 
@@ -803,6 +900,132 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
     resizeCanvas();
     resetGame();
     draw();
+    connectMultiplayer();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js");
+      });
+    }
+
+    function getPlayerName() {
+      const savedName = localStorage.getItem("maliks-star-run-name");
+
+      if (savedName) {
+        return savedName;
+      }
+
+      const name = `Player ${Math.floor(100 + Math.random() * 900)}`;
+      localStorage.setItem("maliks-star-run-name", name);
+      return name;
+    }
+
+    function getPlayerColor(id) {
+      const colors = ["#6f54d9", "#e85d75", "#18a999", "#ff8a00", "#3157a4", "#d8a22a"];
+      let total = 0;
+
+      for (const letter of id) {
+        total += letter.charCodeAt(0);
+      }
+
+      return colors[total % colors.length];
+    }
+
+    function connectMultiplayer() {
+      if (!("WebSocket" in window)) {
+        return;
+      }
+
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      socket = new WebSocket(`${protocol}//${window.location.host}/multiplayer`);
+
+      socket.addEventListener("open", () => {
+        sendSocketMessage({
+          type: "join",
+          name: playerName
+        });
+        updateHud();
+      });
+
+      socket.addEventListener("message", (event) => {
+        const message = JSON.parse(event.data);
+
+        if (message.type === "welcome") {
+          socketId = message.id;
+          remotePlayers.clear();
+
+          for (const otherPlayer of message.players) {
+            if (otherPlayer.id !== socketId) {
+              remotePlayers.set(otherPlayer.id, {
+                ...otherPlayer,
+                color: getPlayerColor(otherPlayer.id),
+                updatedAt: timeNow()
+              });
+            }
+          }
+        }
+
+        if (message.type === "player_update" && message.player.id !== socketId) {
+          remotePlayers.set(message.player.id, {
+            ...message.player,
+            color: getPlayerColor(message.player.id),
+            updatedAt: timeNow()
+          });
+        }
+
+        if (message.type === "player_leave") {
+          remotePlayers.delete(message.id);
+        }
+
+        updateHud();
+      });
+
+      socket.addEventListener("close", scheduleReconnect);
+      socket.addEventListener("error", () => socket.close());
+    }
+
+    function scheduleReconnect() {
+      socket = null;
+      socketId = null;
+      updateHud();
+
+      if (reconnectTimer) {
+        return;
+      }
+
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connectMultiplayer();
+      }, 1500);
+    }
+
+    function sendMultiplayerState(now) {
+      if (!socket || socket.readyState !== WebSocket.OPEN || now - lastNetworkSend < 80) {
+        return;
+      }
+
+      lastNetworkSend = now;
+      sendSocketMessage({
+        type: "state",
+        name: playerName,
+        jumpHeight: ground.y - player.height - player.y,
+        runStep: player.runStep,
+        stars,
+        score: Math.floor(score),
+        level: getCurrentLevel(),
+        running: gameRunning
+      });
+    }
+
+    function sendSocketMessage(message) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(message));
+      }
+    }
+
+    function timeNow() {
+      return performance.now();
+    }
   </script>
 </body>
 </html>
