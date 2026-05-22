@@ -692,6 +692,8 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
       ctx.arc(x + 24, y + 22, 18, 0, Math.PI * 2);
       ctx.fill();
 
+      drawAfro(x + 24, y + 12);
+
       ctx.fillStyle = "#172026";
       ctx.beginPath();
       ctx.arc(x + 31, y + 18, 2.5, 0, Math.PI * 2);
@@ -718,6 +720,27 @@ Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
       ctx.fillStyle = "#172026";
       ctx.font = "12px Arial";
       ctx.fillText(outfit.name.split(" ")[0], x - 6, y - 18);
+    }
+
+    function drawAfro(centerX, centerY) {
+      ctx.fillStyle = "#17120f";
+
+      const curls = [
+        [-20, 5, 11],
+        [-15, -7, 13],
+        [-5, -15, 14],
+        [8, -15, 14],
+        [18, -6, 13],
+        [21, 6, 10],
+        [-5, 0, 16],
+        [7, 1, 16]
+      ];
+
+      for (const [offsetX, offsetY, radius] of curls) {
+        ctx.beginPath();
+        ctx.arc(centerX + offsetX, centerY + offsetY, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     function drawCone(cone) {
