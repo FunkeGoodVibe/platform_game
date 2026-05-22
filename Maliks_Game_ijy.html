@@ -244,6 +244,29 @@
       { stars: 21, name: "Gold jacket" }
     ];
 
+    const worlds = [
+      {
+        stars: 0,
+        name: "Sunny Park",
+        skyTop: "#86d7ff",
+        skyBottom: "#f5f0dc",
+        ground: "#2f7d4b",
+        track: "#245f3b",
+        cloud: "rgba(255, 255, 255, 0.82)",
+        cone: "#f26d3d"
+      },
+      {
+        stars: 5,
+        name: "Moonlight City",
+        skyTop: "#25215c",
+        skyBottom: "#2f7a9b",
+        ground: "#243044",
+        track: "#ffd23f",
+        cloud: "rgba(193, 229, 255, 0.72)",
+        cone: "#9a6cff"
+      }
+    ];
+
     let objects = [];
     let clouds = [];
     let animationId = null;
@@ -315,13 +338,19 @@
     function updateHud() {
       starsText.textContent = stars;
       scoreText.textContent = Math.floor(score);
-      outfitText.textContent = getCurrentUpgrade().name;
+      outfitText.textContent = `${getCurrentUpgrade().name} - ${getCurrentWorld().name}`;
     }
 
     function getCurrentUpgrade() {
       return upgrades.reduce((current, upgrade) => {
         return stars >= upgrade.stars ? upgrade : current;
       }, upgrades[0]);
+    }
+
+    function getCurrentWorld() {
+      return worlds.reduce((current, world) => {
+        return stars >= world.stars ? world : current;
+      }, worlds[0]);
     }
 
     function spawnCone() {
@@ -427,6 +456,7 @@
 
     function draw() {
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      drawBackground();
       drawSky();
       drawGround();
 
@@ -441,9 +471,23 @@
       drawPlayer();
     }
 
+    function drawBackground() {
+      const world = getCurrentWorld();
+      const gradient = ctx.createLinearGradient(0, 0, 0, ground.y);
+      gradient.addColorStop(0, world.skyTop);
+      gradient.addColorStop(1, world.skyBottom);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+      if (stars >= 5) {
+        drawMoonlightCity();
+      }
+    }
+
     function drawSky() {
+      const world = getCurrentWorld();
       for (const cloud of clouds) {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.82)";
+        ctx.fillStyle = world.cloud;
         ctx.beginPath();
         ctx.ellipse(cloud.x, cloud.y, cloud.width * 0.28, 22, 0, 0, Math.PI * 2);
         ctx.ellipse(cloud.x + cloud.width * 0.22, cloud.y - 8, cloud.width * 0.24, 28, 0, 0, Math.PI * 2);
@@ -453,13 +497,35 @@
     }
 
     function drawGround() {
-      ctx.fillStyle = "#2f7d4b";
+      const world = getCurrentWorld();
+      ctx.fillStyle = world.ground;
       ctx.fillRect(0, ground.y, window.innerWidth, ground.height);
 
-      ctx.fillStyle = "#245f3b";
+      ctx.fillStyle = world.track;
       for (let x = -80; x < window.innerWidth + 80; x += 90) {
         const offset = (score * 9) % 90;
         ctx.fillRect(x - offset, ground.y + 22, 52, 7);
+      }
+    }
+
+    function drawMoonlightCity() {
+      ctx.fillStyle = "rgba(255, 242, 176, 0.94)";
+      ctx.beginPath();
+      ctx.arc(window.innerWidth - 105, 92, 34, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(20, 25, 43, 0.82)";
+      const offset = (score * 3) % 90;
+      for (let x = -offset; x < window.innerWidth + 120; x += 90) {
+        const height = 90 + ((x / 30) % 4) * 18;
+        ctx.fillRect(x, ground.y - height, 58, height);
+
+        ctx.fillStyle = "rgba(255, 210, 63, 0.9)";
+        for (let y = ground.y - height + 18; y < ground.y - 16; y += 26) {
+          ctx.fillRect(x + 13, y, 8, 10);
+          ctx.fillRect(x + 36, y, 8, 10);
+        }
+        ctx.fillStyle = "rgba(20, 25, 43, 0.82)";
       }
     }
 
@@ -536,7 +602,7 @@
     }
 
     function drawCone(cone) {
-      ctx.fillStyle = "#f26d3d";
+      ctx.fillStyle = getCurrentWorld().cone;
       ctx.beginPath();
       ctx.moveTo(cone.x + cone.width / 2, cone.y);
       ctx.lineTo(cone.x, cone.y + cone.height);
