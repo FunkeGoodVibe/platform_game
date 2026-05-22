@@ -1,3 +1,15 @@
+<!-- 
+Updated Maliks_Game_ijy.html.
+Now Malik progresses to a new level every 5 stars:
+0-4 stars: Level 1, Sunny Park
+5-9 stars: Level 2, Moonlight City
+10-14 stars: Level 3, Candy Canyon
+15-19 stars: Level 4, Ice Mountain
+20-24 stars: Level 5, Lava Run
+After that, the worlds cycle again every 5 stars while the level number keeps increasing. I also added a Level counter to the HUD.
+Checks passed: HTML parsed successfully and JavaScript syntax check passed. -->
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -195,6 +207,10 @@
           <span>Score</span>
           <strong id="score">0</strong>
         </div>
+        <div class="stat">
+          <span>Level</span>
+          <strong id="level">1</strong>
+        </div>
       </div>
       <div class="closet">
         <span>Outfit</span>
@@ -216,6 +232,7 @@
     const ctx = canvas.getContext("2d");
     const starsText = document.getElementById("stars");
     const scoreText = document.getElementById("score");
+    const levelText = document.getElementById("level");
     const outfitText = document.getElementById("outfit");
     const overlay = document.getElementById("overlay");
     const startButton = document.getElementById("startButton");
@@ -246,24 +263,54 @@
 
     const worlds = [
       {
-        stars: 0,
         name: "Sunny Park",
         skyTop: "#86d7ff",
         skyBottom: "#f5f0dc",
         ground: "#2f7d4b",
         track: "#245f3b",
         cloud: "rgba(255, 255, 255, 0.82)",
-        cone: "#f26d3d"
+        cone: "#f26d3d",
+        scenery: "park"
       },
       {
-        stars: 5,
         name: "Moonlight City",
         skyTop: "#25215c",
         skyBottom: "#2f7a9b",
         ground: "#243044",
         track: "#ffd23f",
         cloud: "rgba(193, 229, 255, 0.72)",
-        cone: "#9a6cff"
+        cone: "#9a6cff",
+        scenery: "city"
+      },
+      {
+        name: "Candy Canyon",
+        skyTop: "#ff9aba",
+        skyBottom: "#ffe27a",
+        ground: "#8e4b8f",
+        track: "#ffffff",
+        cloud: "rgba(255, 245, 250, 0.78)",
+        cone: "#35b8ff",
+        scenery: "canyon"
+      },
+      {
+        name: "Ice Mountain",
+        skyTop: "#dff7ff",
+        skyBottom: "#8bb8ff",
+        ground: "#d8f3ff",
+        track: "#4078c0",
+        cloud: "rgba(255, 255, 255, 0.9)",
+        cone: "#3157a4",
+        scenery: "ice"
+      },
+      {
+        name: "Lava Run",
+        skyTop: "#3b1724",
+        skyBottom: "#e85d3f",
+        ground: "#2b2024",
+        track: "#ffcf4a",
+        cloud: "rgba(255, 207, 74, 0.38)",
+        cone: "#ff8a00",
+        scenery: "lava"
       }
     ];
 
@@ -319,7 +366,7 @@
       gameRunning = false;
       overlay.classList.remove("hidden");
       overlay.querySelector("h1").textContent = "Run Complete";
-      overlay.querySelector("p").textContent = `Score ${Math.floor(score)}. Stars ${stars}. Outfit: ${getCurrentUpgrade().name}.`;
+      overlay.querySelector("p").textContent = `Score ${Math.floor(score)}. Stars ${stars}. Level ${getCurrentLevel()}. Outfit: ${getCurrentUpgrade().name}.`;
       startButton.textContent = "Run Again";
     }
 
@@ -338,6 +385,7 @@
     function updateHud() {
       starsText.textContent = stars;
       scoreText.textContent = Math.floor(score);
+      levelText.textContent = getCurrentLevel();
       outfitText.textContent = `${getCurrentUpgrade().name} - ${getCurrentWorld().name}`;
     }
 
@@ -348,9 +396,11 @@
     }
 
     function getCurrentWorld() {
-      return worlds.reduce((current, world) => {
-        return stars >= world.stars ? world : current;
-      }, worlds[0]);
+      return worlds[(getCurrentLevel() - 1) % worlds.length];
+    }
+
+    function getCurrentLevel() {
+      return Math.floor(stars / 5) + 1;
     }
 
     function spawnCone() {
@@ -479,8 +529,18 @@
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-      if (stars >= 5) {
+      drawWorldScenery(world);
+    }
+
+    function drawWorldScenery(world) {
+      if (world.scenery === "city") {
         drawMoonlightCity();
+      } else if (world.scenery === "canyon") {
+        drawCandyCanyon();
+      } else if (world.scenery === "ice") {
+        drawIceMountain();
+      } else if (world.scenery === "lava") {
+        drawLavaRun();
       }
     }
 
@@ -526,6 +586,65 @@
           ctx.fillRect(x + 36, y, 8, 10);
         }
         ctx.fillStyle = "rgba(20, 25, 43, 0.82)";
+      }
+    }
+
+    function drawCandyCanyon() {
+      const offset = (score * 4) % 140;
+      ctx.fillStyle = "rgba(132, 67, 120, 0.7)";
+
+      for (let x = -offset; x < window.innerWidth + 170; x += 140) {
+        ctx.beginPath();
+        ctx.moveTo(x, ground.y);
+        ctx.lineTo(x + 38, ground.y - 112);
+        ctx.lineTo(x + 88, ground.y - 70);
+        ctx.lineTo(x + 126, ground.y);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+        ctx.fillRect(x + 38, ground.y - 78, 44, 7);
+        ctx.fillRect(x + 26, ground.y - 42, 74, 7);
+        ctx.fillStyle = "rgba(132, 67, 120, 0.7)";
+      }
+    }
+
+    function drawIceMountain() {
+      const offset = (score * 2) % 180;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+
+      for (let x = -offset; x < window.innerWidth + 220; x += 180) {
+        ctx.beginPath();
+        ctx.moveTo(x, ground.y);
+        ctx.lineTo(x + 80, ground.y - 150);
+        ctx.lineTo(x + 160, ground.y);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(80, 135, 200, 0.45)";
+        ctx.beginPath();
+        ctx.moveTo(x + 80, ground.y - 150);
+        ctx.lineTo(x + 108, ground.y - 98);
+        ctx.lineTo(x + 70, ground.y - 112);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+      }
+    }
+
+    function drawLavaRun() {
+      const offset = (score * 5) % 120;
+      ctx.fillStyle = "rgba(255, 207, 74, 0.82)";
+
+      for (let x = -offset; x < window.innerWidth + 140; x += 120) {
+        ctx.beginPath();
+        ctx.arc(x + 44, ground.y - 16, 28, 0, Math.PI, true);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+      for (let x = 0; x < window.innerWidth; x += 130) {
+        ctx.fillRect(x, ground.y - 54, 66, 12);
       }
     }
 
